@@ -3,41 +3,65 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper functions for auth & roles
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdminOrTailor() {
+      return isAuthenticated() && (
+        getUserData().role == 'admin' || 
+        getUserData().role == 'tailor' ||
+        request.auth.token.email == 'badal17patell@gmail.com' ||
+        request.auth.token.email == 'tailor@magnumuniforms.com'
+      );
+    }
+
     // User Accounts collection
     match /users/{userId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdminOrTailor());
+      allow create: if isAuthenticated() && request.auth.uid == userId && (request.resource.data.role == 'parent' || request.resource.data.role == undefined || request.resource.data.role == 'customer');
+      allow update: if isAuthenticated() && request.auth.uid == userId && (request.resource.data.role == resource.data.role || isAdminOrTailor());
+      allow delete: if isAdminOrTailor();
     }
 
-    // Orders collection - accessible by parents, guests, and master tailors
+    // Orders collection
     match /orders/{orderId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdminOrTailor());
+      allow create: if isAuthenticated();
+      allow update: if isAdminOrTailor() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdminOrTailor();
     }
 
-    // Child Profiles collection - student uniform measurements & profiles
+    // Child Profiles collection
     match /childProfiles/{profileId} {
-      allow read, write: if true;
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid || isAdminOrTailor());
     }
 
-    // Exchange Requests collection - size swap tickets
+    // Exchange Requests collection
     match /exchangeRequests/{requestId} {
-      allow read, write: if true;
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || isAdminOrTailor());
     }
 
-    // Products collection - authoritative institutional uniform catalogue & live inventory
+    // Products collection - authoritative institutional uniform catalogue
     match /products/{productId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdminOrTailor();
     }
 
     // Inventory Audit Trail collection
     match /inventoryLogs/{logId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrTailor();
     }
 
-    // Default fallback for any other collections
+    // Default fallback for any other collections - deny by default
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }
-
