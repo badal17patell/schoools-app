@@ -14,16 +14,16 @@ export const AddressModal: React.FC<AddressModalProps> = ({
   currentAddress,
   onSaveAddress,
 }) => {
-  const [fullName, setFullName] = useState(currentAddress.fullName || 'Rajesh Sharma');
-  const [phone, setPhone] = useState(currentAddress.phone || '+91 98201 49201');
-  const [flat, setFlat] = useState(currentAddress.flat || 'Flat 402, Royal Palms Apartments');
-  const [street, setStreet] = useState(currentAddress.street || 'Lane 5, Koregaon Park');
-  const [area, setArea] = useState(currentAddress.area || 'Koregaon Park');
-  const [city, setCity] = useState(currentAddress.city || 'Pune');
-  const [state, setState] = useState(currentAddress.state || 'Maharashtra');
-  const [pincode, setPincode] = useState(currentAddress.pincode || '411001');
+  const [fullName, setFullName] = useState(currentAddress?.fullName || '');
+  const [phone, setPhone] = useState(currentAddress?.phone || '');
+  const [flat, setFlat] = useState(currentAddress?.flat || '');
+  const [street, setStreet] = useState(currentAddress?.street || '');
+  const [area, setArea] = useState(currentAddress?.area || '');
+  const [city, setCity] = useState(currentAddress?.city || 'Pune');
+  const [state, setState] = useState(currentAddress?.state || 'Maharashtra');
+  const [pincode, setPincode] = useState(currentAddress?.pincode || '');
   const [tag, setTag] = useState<UserAccount['defaultAddress']['tag']>(
-    currentAddress.tag || 'Home'
+    currentAddress?.tag || 'Home'
   );
 
   if (!isOpen) return null;

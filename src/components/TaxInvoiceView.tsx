@@ -94,9 +94,11 @@ export const TaxInvoiceView: React.FC<TaxInvoiceViewProps> = ({
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pb-5 border-b-2 border-gray-900">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 rounded-lg bg-[#002244] text-[#E0A96D] flex items-center justify-center font-bold text-base">
-                M
-              </div>
+              <img
+                src="/assets/magnum-logo.svg"
+                alt="Magnum School Uniform"
+                className="w-10 h-10 rounded-lg bg-black border border-[#d4af37]/30 p-0.5 object-contain shrink-0"
+              />
               <h1 className="text-[20px] font-extrabold tracking-tight text-[#002244] uppercase">
                 Magnum Uniforms & Institutional Apparel
               </h1>
@@ -170,15 +172,21 @@ export const TaxInvoiceView: React.FC<TaxInvoiceViewProps> = ({
               Billed To & Consignee Details
             </span>
             <p className="font-bold text-black text-[13px]">
-              {user.name || 'Rajesh Sharma'}
+              {user.defaultAddress?.fullName || user.name || 'Authorized Parent'}
             </p>
             <p className="text-gray-600 text-[11px]">
-              Phone: {user.phone || '+91 98201 49201'}
+              Phone: {user.defaultAddress?.phone || user.phone || 'On Record with School Depot'}
             </p>
             <p className="text-gray-600 text-[11px]">
-              Delivery Destination: {user.defaultAddress?.flat || 'Flat 402, Royal Palms Apartments'},{' '}
-              {user.defaultAddress?.street || 'Lane 5, Koregaon Park'},{' '}
-              {user.defaultAddress?.city || 'Pune'} - {user.defaultAddress?.pincode || '411001'}
+              Delivery Destination:{' '}
+              {[
+                user.defaultAddress?.flat?.trim(),
+                user.defaultAddress?.street?.trim(),
+                user.defaultAddress?.city?.trim(),
+                user.defaultAddress?.pincode?.trim() ? `PIN: ${user.defaultAddress.pincode.trim()}` : '',
+              ]
+                .filter(Boolean)
+                .join(', ') || 'School Campus Uniform Depot'}
             </p>
             <p className="text-gray-600 text-[11px]">
               Place of Supply: <strong className="text-black">Maharashtra (27)</strong>

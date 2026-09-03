@@ -23,6 +23,17 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Products collection - authoritative institutional uniform catalogue & live inventory
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Inventory Audit Trail collection
+    match /inventoryLogs/{logId} {
+      allow read, write: if true;
+    }
+
     // Default fallback for any other collections
     match /{document=**} {
       allow read, write: if true;

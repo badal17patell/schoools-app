@@ -179,7 +179,7 @@ export const ProductDetailsView: React.FC<ProductDetailsViewProps> = ({
               Ready in Stock
             </span>
             <span>•</span>
-            <span>Standard Fit as per DPS Pune Guidelines</span>
+            <span>Standard Fit as per {activeSchool?.name || 'Institutional'} Guidelines</span>
           </div>
         </div>
 
@@ -191,7 +191,15 @@ export const ProductDetailsView: React.FC<ProductDetailsViewProps> = ({
                 Select Size
               </h3>
               <p className="text-[11px] text-on-surface-variant">
-                Chest measurement in inches
+                {product.category === 'shoes'
+                  ? 'Standard UK / Indian shoe sizing'
+                  : product.category === 'socks'
+                  ? 'Standard footwear size match'
+                  : product.category === 'ties' || product.category === 'accessories'
+                  ? 'Institutional regulation dimensions'
+                  : product.category === 'trousers' || product.category === 'skirts'
+                  ? 'Waist circumference in inches'
+                  : 'Chest measurement in inches'}
               </p>
             </div>
             <button
@@ -206,22 +214,22 @@ export const ProductDetailsView: React.FC<ProductDetailsViewProps> = ({
           </div>
 
           {/* Size Chips */}
-          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-2">
             {product.availableSizes.map((size) => {
               const isSelected = selectedSize === size;
               return (
                 <button
                   key={size}
                   onClick={() => setSelectedSize(size)}
-                  className={`h-11 rounded-lg font-bold text-[13px] flex items-center justify-center gap-1 transition-all ${
+                  className={`h-11 px-2 rounded-lg font-bold text-[12px] flex items-center justify-center gap-1 transition-all ${
                     isSelected
                       ? 'bg-primary text-on-primary shadow-sm border-2 border-secondary'
                       : 'bg-surface-container-low text-on-surface hover:bg-surface-container border border-surface-container'
                   }`}
                 >
-                  <span>{size}</span>
+                  <span className="truncate">{size}</span>
                   {isSelected && (
-                    <span className="material-symbols-outlined text-xs text-secondary-fixed">
+                    <span className="material-symbols-outlined text-xs text-secondary-fixed shrink-0">
                       check
                     </span>
                   )}
@@ -236,8 +244,14 @@ export const ProductDetailsView: React.FC<ProductDetailsViewProps> = ({
                 info
               </span>
               <span>
-                Selected: <strong>Size {selectedSize}</strong> (Approx. Age
-                10-12 yrs, Chest {selectedSize}")
+                Selected: <strong>{selectedSize}</strong>
+                {product.category === 'shoes'
+                  ? ' • Official Institutional Footwear Standard'
+                  : product.category === 'socks'
+                  ? ' • Elastic Cushion Ribbed Stretch'
+                  : product.category === 'ties' || product.category === 'accessories'
+                  ? ' • Authorized School Insignia'
+                  : ` • Standard Fit`}
               </span>
             </div>
             <span className="text-secondary font-bold text-[11px] shrink-0">

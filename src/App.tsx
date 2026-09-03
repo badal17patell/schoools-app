@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ActiveScreen,
   School,
@@ -14,11 +14,11 @@ import {
   UserAccount,
   Address,
   ExchangeRequest,
+  ManagedProduct,
 } from './types';
 import { SCHOOLS } from './data/schools';
 import { UNIFORM_ITEMS } from './data/products';
 import { INITIAL_ORDERS } from './data/orders';
-import { INITIAL_PROFILES } from './data/profiles';
 import {
   onAuthChange,
   subscribeToOrders,
@@ -26,8 +26,14 @@ import {
   createOrderInDb,
   updateOrderStatusInDb,
   saveProfileInDb,
+  deleteProfileFromDb,
   updateUserProfileInDb,
   submitExchangeRequest,
+  logoutUser,
+  subscribeToProducts,
+  managedProductToUniformItem,
+  seedInitialProductsIfEmpty,
+  decrementInventoryForOrder,
 } from './services/dbService';
 
 import { Header } from './components/Header';
@@ -48,6 +54,24 @@ import { AddChildModal } from './components/AddChildModal';
 import { AddressModal } from './components/AddressModal';
 import { SupportModal } from './components/SupportModal';
 
+const GUEST_USER: UserAccount = {
+  id: '',
+  name: 'Guest Parent',
+  phone: '',
+  email: '',
+  role: 'guest',
+  isLoggedIn: false,
+  defaultAddress: {
+    fullName: '',
+    phone: '',
+    flat: '',
+    street: '',
+    city: 'Pune',
+    pincode: '',
+    tag: 'Home',
+  },
+};
+
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ActiveScreen>('home');
   const [activeSchool, setActiveSchool] = useState<School>(SCHOOLS[0]);
@@ -55,48 +79,15 @@ export default function App() {
   const [selectedProductSize, setSelectedProductSize] = useState<string>('32');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Current authenticated user account state
-  const [user, setUser] = useState<UserAccount>({
-    id: 'usr-rajesh',
-    name: 'Rajesh Sharma',
-    phone: '+91 98201 49201',
-    email: 'rajesh.sharma@example.com',
-    role: 'parent',
-    isLoggedIn: true,
-    avatarUrl:
-      'https://lh3.googleusercontent.com/aida/AEtjO1WdqKYFtNkOBysM4Y6KvU8SkPiXYGwzzrxfu5XdFg1MmmpSuxRaKjJXDDVqUw05mPCNIvZJ7rBGTHy0cqnUePCIuwGroE4jgLW8BQ4T_4Aswi9Td61Bj8nPCmv2GHuwjB7TxagLd4dqBnasGe2GNhsJvVAfBY9JbFzSzeOXoFD8urFIkT_DEOZN8_Dyj2KCBNCILm5eBIx9lHXpDCZgnpVsNAKXe_lmp7wdkPmUfJYRyn7-7rUOFX2-q4UQr29MGJVQOv2cjuc0rg',
-    defaultAddress: {
-      id: 'addr-1',
-      fullName: 'Rajesh Sharma',
-      phone: '+91 98201 49201',
-      flat: 'Flat 402, Royal Palms Apartments',
-      street: 'Lane 5, Koregaon Park',
-      city: 'Pune',
-      pincode: '411001',
-      tag: 'Home',
-    },
-  });
-
-  // Cart initialized with the 2 items from screen 2 for an instant authentic experience
-  const [cart, setCart] = useState<CartItem[]>([
-    {
-      item: UNIFORM_ITEMS[0], // White Shirt
-      size: '32',
-      quantity: 1,
-    },
-    {
-      item: UNIFORM_ITEMS[2], // Formal Trousers Navy / Grey
-      size: '30',
-      quantity: 1,
-    },
-  ]);
-
-  // Orders and profiles
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
-  const [profiles, setProfiles] = useState<ChildProfile[]>(INITIAL_PROFILES);
+  // Clean initial state: unauthenticated guest user with an empty shopping cart
+  const [user, setUser] = useState<UserAccount>(GUEST_USER);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [profiles, setProfiles] = useState<ChildProfile[]>([]);
+  const [managedProducts, setManagedProducts] = useState<ManagedProduct[]>([]);
 
   // Selected Order for Tax Invoice and Exchange
-  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order>(INITIAL_ORDERS[0]);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
   const [selectedExchangeOrder, setSelectedExchangeOrder] = useState<Order | null>(null);
 
   // Modals & Toast State
@@ -116,11 +107,57 @@ export default function App() {
     }, 3200);
   };
 
+  // Real Firestore Products subscription & bootstrap seeding
+  useEffect(() => {
+    seedInitialProductsIfEmpty().catch((err) => {
+      console.warn('Seeding check:', err);
+    });
+
+    const unsubscribe = subscribeToProducts((liveProds) => {
+      setManagedProducts(liveProds || []);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Compute live uniform items as unified single-source-of-truth:
+  // Synchronizes base catalog UNIFORM_ITEMS with real-time Firestore managedProducts.
+  // Any update to a product in Firestore immediately overrides the catalog with its live price, mrp, stock, etc.
+  // Any new custom products added in Firestore are seamlessly included.
+  const liveUniformItems = useMemo<UniformItem[]>(() => {
+    const firestoreMap = new Map<string, ManagedProduct>();
+    (managedProducts || []).forEach((p) => {
+      firestoreMap.set(p.id, p);
+    });
+
+    const merged: UniformItem[] = UNIFORM_ITEMS.map((baseItem) => {
+      const live = firestoreMap.get(baseItem.id);
+      if (live) {
+        return managedProductToUniformItem(live);
+      }
+      return baseItem;
+    });
+
+    (managedProducts || []).forEach((p) => {
+      const exists = UNIFORM_ITEMS.some((b) => b.id === p.id);
+      if (!exists) {
+        merged.push(managedProductToUniformItem(p));
+      }
+    });
+
+    return merged.filter(
+      (item) => item.status !== 'archived' && item.isPublished !== false
+    );
+  }, [managedProducts]);
+
   // Real Firebase Auth listener
   useEffect(() => {
     const unsubscribe = onAuthChange((firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
+      } else {
+        setUser(GUEST_USER);
+        setOrders([]);
+        setProfiles([]);
       }
     });
     return () => unsubscribe();
@@ -128,44 +165,61 @@ export default function App() {
 
   // Subscribe to real-time Cloud Firestore Orders
   useEffect(() => {
-    const unsubscribe = subscribeToOrders(user?.id, user?.role || 'parent', (liveOrders) => {
+    const unsubscribe = subscribeToOrders(user?.id, user?.role || 'guest', (liveOrders) => {
+      setOrders(liveOrders || []);
       if (liveOrders && liveOrders.length > 0) {
-        setOrders(liveOrders);
         setSelectedInvoiceOrder((prev) => {
           const match = liveOrders.find((o) => o.id === prev?.id);
           return match || liveOrders[0];
         });
       }
-    });
+    }, user?.email);
     return () => unsubscribe();
-  }, [user?.id, user?.role]);
+  }, [user?.id, user?.role, user?.email]);
 
   // Subscribe to real-time Cloud Firestore Student Profiles
   useEffect(() => {
-    if (!user?.id) return;
-    const unsubscribe = subscribeToProfiles(user.id, (liveProfiles) => {
-      if (liveProfiles && liveProfiles.length > 0) {
-        setProfiles(liveProfiles);
-      }
+    if (!user?.id) {
+      setProfiles([]);
+      return;
+    }
+    const unsubscribe = subscribeToProfiles(user.id, user.email, (liveProfiles) => {
+      setProfiles(liveProfiles || []);
     });
     return () => unsubscribe();
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (err) {
+      console.warn('Logout fallback:', err);
+    }
+    setUser(GUEST_USER);
+    setCart([]);
+    setOrders([]);
+    setProfiles([]);
+    showToast('Signed out successfully');
+    setCurrentScreen('home');
+  };
 
   // Cart operations
   const handleAddToCart = (item: UniformItem, size: string, quantity = 1) => {
+    const freshItem = liveUniformItems.find((p) => p.id === item.id) || item;
     setCart((prev) => {
       const existingIdx = prev.findIndex(
-        (ci) => ci.item.id === item.id && ci.size === size
+        (ci) => ci.item.id === freshItem.id && ci.size === size
       );
       if (existingIdx > -1) {
         const copy = [...prev];
         copy[existingIdx].quantity += quantity;
+        copy[existingIdx].item = freshItem;
         return copy;
       } else {
-        return [...prev, { item, size, quantity }];
+        return [...prev, { item: freshItem, size, quantity }];
       }
     });
-    showToast(`Added ${item.name} (Size ${size}) to Cart`);
+    showToast(`Added ${freshItem.name} (Size ${size}) to Cart`);
   };
 
   const handleUpdateQty = (itemId: string, size: string, delta: number) => {
@@ -279,6 +333,18 @@ export default function App() {
     showToast(`Added ${newProfile.name} (${newProfile.grade}) to enrolled students!`);
   };
 
+  const handleDeleteChild = async (profileId: string) => {
+    setProfiles((prev) => prev.filter((p) => p.id !== profileId));
+    if (user?.id) {
+      try {
+        await deleteProfileFromDb(profileId, user.id);
+      } catch (err) {
+        console.warn('deleteProfileFromDb error:', err);
+      }
+    }
+    showToast('Student profile removed from account.');
+  };
+
   const handleSaveAddress = async (newAddr: Address) => {
     setUser((prev) => ({ ...prev, defaultAddress: newAddr }));
     if (user?.id) {
@@ -307,9 +373,17 @@ export default function App() {
   };
 
   const handleOrderPlaced = (newOrderId: string) => {
-    const formattedAddr = user.defaultAddress
-      ? `${user.defaultAddress.flat}, ${user.defaultAddress.street}, ${user.defaultAddress.city} - ${user.defaultAddress.pincode}`
-      : 'Flat 402, Royal Palms Apartments, Lane 5, Koregaon Park, Pune - 411001';
+    const formattedAddr =
+      user.defaultAddress && (user.defaultAddress.flat?.trim() || user.defaultAddress.street?.trim())
+        ? [
+            user.defaultAddress.flat?.trim(),
+            user.defaultAddress.street?.trim(),
+            user.defaultAddress.city?.trim(),
+            user.defaultAddress.pincode?.trim() ? `PIN: ${user.defaultAddress.pincode.trim()}` : '',
+          ]
+            .filter(Boolean)
+            .join(', ')
+        : 'School Campus Uniform Delivery Depot';
 
     const newOrder: Order = {
       id: newOrderId,
@@ -318,12 +392,12 @@ export default function App() {
       total: cart.reduce((sum, i) => sum + i.item.price * i.quantity, 0),
       totalAmount: cart.reduce((sum, i) => sum + i.item.price * i.quantity, 0),
       paymentMethod: 'UPI Instant Verified',
-      studentName: profiles[0]?.name || 'Aarav Sharma',
-      studentGrade: profiles[0]?.grade || 'Grade 6',
+      studentName: profiles[0]?.name || user.name || 'Student',
+      studentGrade: profiles[0]?.grade || 'Official Uniform',
       school: activeSchool.name,
       house: 'Institutional Allocation',
       shippingAddress: formattedAddr,
-      contactNumber: user.phone || '+91 98201 49201',
+      contactNumber: user.defaultAddress?.phone || user.phone || '',
       statusText: 'ORDER PLACED & VERIFIED',
       status: 'in-transit',
       timelineStep: 1,
@@ -343,12 +417,26 @@ export default function App() {
     setCart([]);
     showToast(`Order ${newOrderId} placed successfully!`);
 
+    // Deduct stock in real-time Cloud Firestore
+    decrementInventoryForOrder(
+      cart.map((ci) => ({
+        productId: ci.item.id,
+        name: ci.item.name,
+        size: ci.size,
+        qty: ci.quantity,
+      })),
+      newOrderId,
+      user?.email || 'guest@magnumuniforms.com'
+    ).catch((err) => {
+      console.warn('decrementInventoryForOrder error:', err);
+    });
+
     // Persist immediately to Cloud Firestore database
-    if (user?.id) {
-      createOrderInDb(newOrder, user.id, user.email).catch((err) => {
-        console.warn('createOrderInDb error:', err);
-      });
-    }
+    const targetUserId = user?.id || `guest_${Date.now()}`;
+    const targetUserEmail = user?.email || 'guest@magnumuniforms.com';
+    createOrderInDb(newOrder, targetUserId, targetUserEmail).catch((err) => {
+      console.warn('createOrderInDb error:', err);
+    });
   };
 
   const handleQuickReorder = (profile: ChildProfile) => {
@@ -439,12 +527,16 @@ export default function App() {
             onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
+            products={liveUniformItems}
           />
         )}
 
         {currentScreen === 'product-details' && (
           <ProductDetailsView
-            product={selectedProduct}
+            product={
+              liveUniformItems.find((p) => p.id === selectedProduct.id) ||
+              selectedProduct
+            }
             initialSize={selectedProductSize}
             activeSchool={activeSchool}
             onBack={() => setCurrentScreen('store')}
@@ -456,7 +548,10 @@ export default function App() {
 
         {currentScreen === 'cart' && (
           <CartCheckoutView
-            cart={cart}
+            cart={cart.map((ci) => {
+              const fresh = liveUniformItems.find((p) => p.id === ci.item.id);
+              return fresh ? { ...ci, item: fresh } : ci;
+            })}
             onUpdateQty={handleUpdateQty}
             onRemoveItem={handleRemoveItem}
             activeSchool={activeSchool}
@@ -474,6 +569,7 @@ export default function App() {
         {currentScreen === 'track-order' && (
           <TrackOrderView
             orders={orders}
+            user={user}
             onNavigate={(s) => {
               setCurrentScreen(s);
               window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -498,7 +594,9 @@ export default function App() {
             onQuickReorder={handleQuickReorder}
             onShowToast={showToast}
             user={user}
+            onLogout={handleLogout}
             onOpenAddChild={() => setIsAddChildModalOpen(true)}
+            onDeleteProfile={handleDeleteChild}
             onOpenInvoice={handleOpenInvoice}
             onOpenAddressModal={() => setIsAddressModalOpen(true)}
             onSelectOrderToTrack={(orderId) => {
@@ -521,6 +619,7 @@ export default function App() {
             onShowToast={showToast}
             orders={orders}
             onUpdateOrderStatus={handleUpdateOrderStatus}
+            user={user}
           />
         )}
 
@@ -539,9 +638,8 @@ export default function App() {
 
         {currentScreen === 'invoice' && (
           <TaxInvoiceView
-            order={selectedInvoiceOrder || orders[0]}
+            order={(selectedInvoiceOrder || orders[0]) as any}
             user={user}
-            activeSchool={activeSchool}
             onBack={() => {
               setCurrentScreen('track-order');
               window.scrollTo({ top: 0, behavior: 'smooth' });

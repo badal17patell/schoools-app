@@ -87,6 +87,57 @@
         "requestDate": { "type": "string" }
       },
       "required": ["orderId", "userId", "itemName", "requestedSize"]
+    },
+    "Product": {
+      "title": "Uniform Product SKU",
+      "description": "Magnum institutional uniform SKU with real-time size inventory and school association",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "schoolName": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "sku": { "type": "string" },
+        "category": { "type": "string" },
+        "subcategory": { "type": "string" },
+        "gender": { "type": "string", "enum": ["boys", "girls", "unisex"] },
+        "ageGroup": { "type": "string" },
+        "season": { "type": "string" },
+        "price": { "type": "number" },
+        "mrp": { "type": "number" },
+        "discount": { "type": "number" },
+        "images": { "type": "array" },
+        "sizes": { "type": "array" },
+        "status": { "type": "string", "enum": ["draft", "active", "out_of_stock", "discontinued", "archived"] },
+        "isPublished": { "type": "boolean" },
+        "totalStock": { "type": "number" },
+        "fabricBlend": { "type": "string" },
+        "badge": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id", "schoolId", "name", "sku", "category", "price", "status"]
+    },
+    "InventoryLog": {
+      "title": "Stock Adjustment Audit Log",
+      "description": "Traceable inventory adjustments and batch receipts for institutional uniforms",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "size": { "type": "string" },
+        "adjustment": { "type": "number" },
+        "previousQuantity": { "type": "number" },
+        "newQuantity": { "type": "number" },
+        "reason": { "type": "string" },
+        "user": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["productId", "size", "adjustment", "newQuantity", "reason"]
     }
   },
   "firestore": {
@@ -106,6 +157,14 @@
       "exchangeRequests": {
         "schema": "ExchangeRequest",
         "rules": "Parents can create exchange requests. Staff can review and update exchange status."
+      },
+      "products": {
+        "schema": "Product",
+        "rules": "Public read for active catalogue products. Master tailor and admin can create, edit, publish, and manage inventory."
+      },
+      "inventoryLogs": {
+        "schema": "InventoryLog",
+        "rules": "Master tailor and admin can record and inspect inventory audit trails."
       }
     }
   }

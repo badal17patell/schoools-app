@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActiveScreen, School, UserAccount } from '../types';
+import { MagnumLogo } from './MagnumLogo';
 
 interface HeaderProps {
   currentScreen: ActiveScreen;
@@ -20,6 +21,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSupport,
   user,
 }) => {
+  const isAdminBadal = Boolean(
+    user?.isLoggedIn &&
+    user?.email?.trim().toLowerCase() === 'badal17patell@gmail.com'
+  );
+
   return (
     <header className="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
       <div className="h-16 max-w-4xl mx-auto px-4 flex items-center justify-between gap-2">
@@ -28,21 +34,11 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => onNavigate('home')}
           className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer hover:opacity-90 transition-opacity"
         >
-          <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm">
-            <span className="material-symbols-outlined text-secondary-fixed text-lg font-bold">
-              shield
-            </span>
-          </div>
+          <MagnumLogo variant="crest" size={36} className="shrink-0" />
           <div className="flex flex-col min-w-0">
-            <span className="font-bold text-[16px] text-primary tracking-tight leading-none truncate">
+            <span className="font-extrabold text-[17px] text-primary tracking-tight leading-none truncate">
               MAGNUM
             </span>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-secondary shrink-0"></span>
-              <span className="text-[11px] text-secondary font-semibold truncate">
-                {activeSchool.name.replace(' - ', ' • ')}
-              </span>
-            </div>
           </div>
         </button>
 
@@ -60,22 +56,24 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* Admin Tailor Console Quick Switcher */}
-          <button
-            aria-label="Master Tailor Console"
-            onClick={() => onNavigate('admin')}
-            title="Master Catalog & Inventory Console"
-            className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all ${
-              currentScreen === 'admin'
-                ? 'bg-primary text-secondary-fixed shadow-sm'
-                : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-primary'
-            }`}
-          >
-            <span className="material-symbols-outlined text-sm text-secondary">
-              admin_panel_settings
-            </span>
-            <span className="hidden sm:inline">Tailor Console</span>
-          </button>
+          {/* Admin Tailor Console Quick Switcher - strictly visible only to admin badal17patell@gmail.com */}
+          {isAdminBadal && (
+            <button
+              aria-label="Master Tailor Console"
+              onClick={() => onNavigate('admin')}
+              title="Master Catalog & Inventory Console"
+              className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all ${
+                currentScreen === 'admin'
+                  ? 'bg-primary text-secondary-fixed shadow-sm'
+                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-primary'
+              }`}
+            >
+              <span className="material-symbols-outlined text-sm text-secondary">
+                admin_panel_settings
+              </span>
+              <span className="hidden sm:inline">Tailor Console</span>
+            </button>
+          )}
 
           {/* Search Trigger */}
           <button

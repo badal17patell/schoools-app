@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ActiveScreen, UserAccount, School } from '../types';
+import { MagnumLogo } from './MagnumLogo';
 import {
   loginWithEmail,
   registerWithEmail,
@@ -33,6 +34,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // Sign In / Register Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<'parent' | 'tailor'>('parent');
@@ -45,7 +47,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
 
-  // Handle Real Email/Password Login
+  // Handle Real Email/Password Login - Strictly requires prior registration
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -56,38 +58,26 @@ export const LoginView: React.FC<LoginViewProps> = ({
     setIsLoading(true);
     setAuthError(null);
     try {
-      let account: UserAccount;
-      try {
-        account = await loginWithEmail(email, password);
-      } catch (innerErr: any) {
-        // If testing with demo accounts and they are not created in Firebase yet, auto-provision them
-        if (
-          (email === 'parent.rajesh@magnumuniforms.com' || email === 'master.tailor@magnumuniforms.com') &&
-          (innerErr.code === 'auth/user-not-found' || innerErr.code === 'auth/invalid-credential' || innerErr.code === 'auth/invalid-login-credentials')
-        ) {
-          const isTailor = email.includes('tailor');
-          account = await registerWithEmail(
-            isTailor ? 'Master Tailor' : 'Rajesh Sharma',
-            email,
-            password,
-            isTailor ? '+91 98200 11223' : '+91 98201 49201',
-            isTailor ? 'tailor' : 'parent'
-          );
-        } else {
-          throw innerErr;
-        }
-      }
+      const account = await loginWithEmail(email, password);
       onLoginSuccess(account);
       onShowToast(`Signed in successfully as ${account.name}`);
       onNavigate(account.role === 'tailor' ? 'admin' : 'account');
     } catch (err: any) {
       console.error('Firebase sign in error:', err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setAuthError('Invalid email or password. Please verify credentials or register.');
-      } else if (err.code === 'auth/too-many-requests') {
+      if (err?.code === 'auth/user-not-found') {
+        setAuthError(
+          `No registered account found with "${email}". Please register yourself first to sign in.`
+        );
+      } else if (
+        err?.code === 'auth/wrong-password' ||
+        err?.code === 'auth/invalid-credential' ||
+        err?.code === 'auth/invalid-login-credentials'
+      ) {
+        setAuthError('Incorrect password or email. Please verify your credentials or reset your password.');
+      } else if (err?.code === 'auth/too-many-requests') {
         setAuthError('Access temporarily disabled due to multiple failed attempts. Try again shortly.');
       } else {
-        setAuthError(err.message || 'Failed to sign in. Please try again.');
+        setAuthError(err?.message || 'Failed to sign in. Please verify credentials or register.');
       }
     } finally {
       setIsLoading(false);
@@ -97,12 +87,29 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // Handle Real User Registration
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setAuthError('Please enter an email and password');
+    if (!fullName.trim()) {
+      setAuthError('Please enter your full name');
+      return;
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone && cleanPhone.length !== 10) {
+      setAuthError('Please enter a valid 10-digit mobile number');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      setAuthError('Please enter a valid email address');
+      return;
+    }
+    if (!password) {
+      setAuthError('Please create a password');
       return;
     }
     if (password.length < 6) {
       setAuthError('Password must be at least 6 characters long');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setAuthError('Passwords do not match. Please ensure both password fields match.');
       return;
     }
 
@@ -111,14 +118,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
     try {
       const account = await registerWithEmail(fullName, email, password, phone, role);
       onLoginSuccess(account);
-      onShowToast(`Account created! Welcome to Magnum Uniforms, ${account.name}`);
-      onNavigate('account');
+      onShowToast(`Account registered successfully! Welcome to Magnum Uniforms, ${account.name}`);
+      onNavigate(account.role === 'tailor' ? 'admin' : 'account');
     } catch (err: any) {
       console.error('Firebase registration error:', err);
-      if (err.code === 'auth/email-already-in-use') {
+      if (err?.code === 'auth/email-already-in-use') {
         setAuthError('An account with this email address already exists. Please sign in instead.');
       } else {
-        setAuthError(err.message || 'Failed to register account.');
+        setAuthError(err?.message || 'Failed to register account.');
       }
     } finally {
       setIsLoading(false);
@@ -133,11 +140,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
       const account = await loginWithGoogle();
       onLoginSuccess(account);
       onShowToast(`Signed in with Google as ${account.name}`);
-      onNavigate('account');
+      onNavigate(account.role === 'tailor' ? 'admin' : 'account');
     } catch (err: any) {
       console.error('Firebase Google Sign-In error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setAuthError(err.message || 'Google sign-in could not be completed.');
+      if (err?.code !== 'auth/popup-closed-by-user') {
+        setAuthError(err?.message || 'Google sign-in could not be completed.');
       }
     } finally {
       setIsLoading(false);
@@ -169,46 +176,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // Handle Admission ID Quick Verification
   const handleAdmissionVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setAuthError(null);
-    try {
-      // Authenticate as verified parent tied to admission ID in Firestore
-      const dummyParentEmail = `parent.${admissionNo.toLowerCase().replace(/[^a-z0-9]/g, '')}@magnumportal.in`;
-      let account: UserAccount;
-      try {
-        account = await loginWithEmail(dummyParentEmail, 'Magnum@DPS2024');
-      } catch {
-        account = await registerWithEmail(
-          `Guardian of ${admissionNo}`,
-          dummyParentEmail,
-          'Magnum@DPS2024',
-          '+91 98201 49201',
-          'parent'
-        );
-      }
-      onLoginSuccess(account);
-      onShowToast(`Verified admission record for ${admissionNo}`);
-      onNavigate('account');
-    } catch (err: any) {
-      console.error('Admission login error:', err);
-      setAuthError('Could not verify admission record. Please use direct email sign in.');
-    } finally {
-      setIsLoading(false);
+    if (!admissionNo.trim()) {
+      setAuthError('Please enter a valid student admission number');
+      return;
     }
-  };
-
-  // Fast Demo Pre-Fill buttons for testing
-  const handleFillDemo = (type: 'parent' | 'tailor') => {
+    // Direct parent to register their guardian account to securely link student details
+    setActiveTab('register');
     setAuthError(null);
-    if (type === 'parent') {
-      setEmail('parent.rajesh@magnumuniforms.com');
-      setPassword('School2024!');
-      setActiveTab('signin');
-    } else {
-      setEmail('master.tailor@magnumuniforms.com');
-      setPassword('MasterTailor2024!');
-      setActiveTab('signin');
-    }
+    onShowToast(`Admission code ${admissionNo} verified. Please complete guardian registration.`);
   };
 
   // Real Sign Out
@@ -243,21 +218,18 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
         {/* Main Authentication Box */}
         <div className="bg-surface-container-lowest rounded-2xl p-5 sm:p-6 shadow-md border border-surface-container flex flex-col gap-4">
-          {/* Institution Header */}
+          {/* Header */}
           <div className="text-center flex flex-col items-center">
-            <div className="w-12 h-12 rounded-xl bg-primary text-secondary-fixed flex items-center justify-center shadow-sm mb-2">
-              <span className="material-symbols-outlined text-2xl">shield</span>
+            <div className="w-16 h-16 rounded-2xl bg-[#050505] border border-[#d4af37]/40 flex items-center justify-center shadow-sm mb-2.5 overflow-hidden p-1">
+              <img
+                src="/assets/magnum-logo.svg"
+                alt="Magnum School Uniform"
+                className="w-full h-full object-contain"
+              />
             </div>
             <h1 className="text-[20px] sm:text-[22px] font-extrabold text-primary tracking-tight">
-              Magnum Institutional Portal
+              Please Sign In
             </h1>
-            <p className="text-[12px] text-on-surface-variant mt-0.5">
-              Authorized uniform fulfillment for {activeSchool.name}
-            </p>
-            <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-              <span>Cloud Firestore Database & Auth Live</span>
-            </div>
           </div>
 
           {/* Current Active Session Banner if logged in */}
@@ -284,6 +256,47 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </button>
             </div>
           )}
+
+          {/* Primary Recommended: Google Sign-In */}
+          <div className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className="w-full h-11 px-4 rounded-xl border-2 border-primary/20 bg-surface-container-lowest hover:bg-surface-container-low text-primary text-[13px] font-bold flex items-center justify-center gap-3 transition-all shadow-xs hover:border-primary/40 cursor-pointer disabled:opacity-60"
+            >
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <span>Continue with Google</span>
+              <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-md bg-secondary/15 text-primary border border-secondary/30">
+                1-Click
+              </span>
+            </button>
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-surface-container"></div>
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase font-bold text-outline">
+                <span className="bg-surface-container-lowest px-2">Or Use School Credentials</span>
+              </div>
+            </div>
+          </div>
 
           {/* Tab Selector */}
           <div className="flex rounded-xl bg-surface-container-low p-1 border border-surface-container text-[12px]">
@@ -330,9 +343,23 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
           {/* Error Message Box */}
           {authError && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[12px] flex items-start gap-2 animate-fadeIn">
-              <span className="material-symbols-outlined text-sm mt-0.5 shrink-0">error</span>
-              <span className="leading-snug">{authError}</span>
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[12px] flex flex-col gap-1.5 animate-fadeIn">
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined text-sm mt-0.5 shrink-0">error</span>
+                <span className="leading-snug flex-1">{authError}</span>
+              </div>
+              {authError.toLowerCase().includes('register') && activeTab === 'signin' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('register');
+                    setAuthError(null);
+                  }}
+                  className="self-start text-[11px] font-bold text-primary underline hover:text-secondary cursor-pointer mt-0.5 ml-5"
+                >
+                  Create / Register account now →
+                </button>
+              )}
             </div>
           )}
 
@@ -407,6 +434,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   </>
                 )}
               </button>
+
+              <div className="text-center pt-1">
+                <span className="text-[12px] text-on-surface-variant">Don't have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('register');
+                    setAuthError(null);
+                  }}
+                  className="text-[12px] text-secondary font-bold hover:underline cursor-pointer"
+                >
+                  Register here
+                </button>
+              </div>
             </form>
           )}
 
@@ -439,7 +480,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="98201 49201"
+                    placeholder="Enter 10-digit mobile"
                     className="w-full h-11 bg-transparent text-[13px] font-semibold text-primary focus:outline-none"
                     required
                   />
@@ -469,6 +510,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Minimum 6 characters"
+                  className="w-full h-11 px-3 bg-surface-container-low rounded-xl text-[13px] font-semibold text-primary border border-surface-container focus:outline-none focus:ring-1 focus:ring-secondary"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-primary uppercase mb-1">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter your password"
                   className="w-full h-11 px-3 bg-surface-container-low rounded-xl text-[13px] font-semibold text-primary border border-surface-container focus:outline-none focus:ring-1 focus:ring-secondary"
                   required
                 />
@@ -507,13 +562,27 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   </span>
                 ) : (
                   <>
-                    <span>Create Portal Account</span>
+                    <span>Register Account</span>
                     <span className="material-symbols-outlined text-secondary-fixed text-base">
                       person_add
                     </span>
                   </>
                 )}
               </button>
+
+              <div className="text-center pt-1">
+                <span className="text-[12px] text-on-surface-variant">Already registered? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('signin');
+                    setAuthError(null);
+                  }}
+                  className="text-[12px] text-secondary font-bold hover:underline cursor-pointer"
+                >
+                  Sign in here
+                </button>
+              </div>
             </form>
           )}
 
@@ -692,41 +761,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
               Continue browsing catalog as Guest
             </button>
           </div>
-
-          {/* One-Click Quick Testing Accounts */}
-          <div className="pt-3 border-t border-surface-container/60 flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold text-outline uppercase tracking-wider text-center">
-              Quick Test Credentials
-            </span>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleFillDemo('parent')}
-                className="p-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-center flex items-center justify-center gap-1.5 border border-surface-container text-[11px] font-bold text-primary cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-secondary text-sm">person</span>
-                <span>Parent Demo</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleFillDemo('tailor')}
-                className="p-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-center flex items-center justify-center gap-1.5 border border-surface-container text-[11px] font-bold text-primary cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-secondary text-sm">admin_panel_settings</span>
-                <span>Tailor Console</span>
-              </button>
-            </div>
-          </div>
         </div>
 
-        {/* Security & Support Note */}
+        {/* Support Note */}
         <div className="text-center mt-3 text-[11px] text-on-surface-variant flex flex-col gap-1">
           <span>
-            Encrypted by <strong>Firebase Authentication & Cloud Firestore</strong>.
-          </span>
-          <span>
-            Help desk: <strong className="text-primary">+91 98201 49201</strong> (Mon–Sat, 9am–6pm)
+            Institutional Help Desk: <strong className="text-primary">1800-202-6000</strong> (Toll Free • Mon–Sat, 9am–6pm)
           </span>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ActiveScreen, School } from '../types';
+import { MagnumLogo } from './MagnumLogo';
 import {
   SCHOOLS,
   getAvailableStates,
@@ -126,104 +127,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const currentSelectedSchool =
     SCHOOLS.find((s) => s.id === selectedSchoolId) || activeSchool || SCHOOLS[0];
 
-  // Curated prominent schools across diverse Indian states
-  const popularSchoolIds = [
-    'DAIS-MUM', // Dhirubhai Ambani, Mumbai
-    'MOD-BARA', // Modern School, New Delhi
-    'DOON-DDN', // The Doon School, Dehradun
-    'BIS', // The Bishop's School, Pune
-    'COTTON-BOYS-BLR', // Bishop Cotton Boys, Bengaluru
-    'LMB-KOL', // La Martiniere for Boys, Kolkata
-    'HPS-BEG', // Hyderabad Public School
-    'MAYO-BOYS', // Mayo College, Ajmer
-  ];
-
-  const popularSchools = useMemo(() => {
-    return popularSchoolIds
-      .map((id) => SCHOOLS.find((s) => s.id === id))
-      .filter(Boolean) as School[];
-  }, []);
-
   return (
     <div className="flex flex-col w-full pb-20">
-      {/* Hero Section */}
-      <section className="relative px-4 pt-4 pb-6 bg-surface-container-low overflow-hidden">
-        <div className="absolute -right-12 -top-12 w-48 h-48 rounded-full bg-secondary-fixed/20 blur-3xl pointer-events-none"></div>
+      <div className="max-w-2xl mx-auto w-full pt-2">
 
-        <div className="relative z-10 flex flex-col gap-3 max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface shadow-xs self-start">
-            <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
-            <span className="text-[12px] text-on-surface-variant uppercase tracking-wider font-bold">
-              Academic Session 2025-26 • 100 Indian Schools
-            </span>
-          </div>
 
-          <h1 className="text-[28px] sm:text-[34px] font-extrabold text-primary tracking-tight leading-tight">
-            Official School Uniforms,
-            <br />
-            Tailored & Delivered.
-          </h1>
-
-          <p className="text-[14px] text-on-surface-variant leading-relaxed max-w-md">
-            Direct institutional uniform portal for 100 top private schools across India.
-            Standardized fabrics, authorized patterns, and guaranteed doorstep delivery.
-          </p>
-
-          {/* Student Banner Image */}
-          <div className="relative w-full h-48 sm:h-56 rounded-xl overflow-hidden shadow-sm my-1 bg-surface-container">
-            <img
-              className="w-full h-full object-cover"
-              alt="Indian school students in official tailored school uniforms with crest blazer in campus setting"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkzMMkncgO2wEiooRlov03SYK58BDRJuVA0ste-EnHkxniFHtbwbm2LByS89nH0S9VmwGkNCbxRnj_1UmncJpr8FeykiYQ8kJo5fZKlw_7adH-tGka1cuDGB7s0wdGXEwVqIsBNMqJJIX525upRVBIpLKkMjWN9Fpfjv7_SIXolOTg96E4Wwq_m58fCaRYznRofClMZy8qakKSE1_hobYdyAgQQXQ49PdDMKia6WKP6StU6hesauIRcA"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/20 to-transparent flex items-end p-3.5">
-              <div className="flex items-center gap-1.5 text-on-primary">
-                <span
-                  className="material-symbols-outlined text-secondary-fixed text-lg"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  verified
-                </span>
-                <span className="text-[13px] font-semibold tracking-tight">
-                  100% Institutional Uniform Pattern & Fabric Compliance
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-2.5 mt-1">
-            <button
-              onClick={() => {
-                document
-                  .getElementById('selectorSection')
-                  ?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="w-full sm:flex-1 h-12 bg-primary text-on-primary rounded-lg flex items-center justify-center gap-2 text-[14px] font-bold shadow-md hover:bg-primary-container active:scale-[0.99] transition-all relative overflow-hidden group cursor-pointer"
-            >
-              <span>Select Your School</span>
-              <span className="material-symbols-outlined text-secondary-fixed text-lg group-hover:translate-x-1 transition-transform">
-                arrow_forward
-              </span>
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-secondary-fixed"></div>
-            </button>
-
-            <button
-              onClick={() => onNavigate('track-order')}
-              className="w-full sm:flex-1 h-12 bg-surface-container-lowest text-primary rounded-lg flex items-center justify-center gap-2 text-[14px] font-bold shadow-xs hover:bg-surface-container transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-lg text-secondary">
-                local_shipping
-              </span>
-              <span>Track My Order</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <div className="max-w-2xl mx-auto w-full">
         {/* Cascading School Selector */}
-        <section className="px-4 py-6 bg-surface" id="selectorSection">
+        <section className="px-4 py-4 bg-surface" id="selectorSection">
           <div className="bg-surface-container-lowest p-4 sm:p-6 rounded-2xl shadow-md flex flex-col gap-5 border border-surface-container/60">
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
@@ -233,12 +143,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     Find Your School Store
                   </h2>
                 </div>
-                <span className="text-[11px] font-bold text-secondary bg-secondary-container/50 px-2 py-0.5 rounded-full">
-                  100 Private Schools
-                </span>
+                <button
+                  onClick={() => onNavigate('track-order')}
+                  className="text-[12px] font-bold text-primary hover:text-secondary flex items-center gap-1.5 bg-surface-container-low hover:bg-surface-container px-3 py-1.5 rounded-lg border border-surface-container transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base text-secondary">
+                    local_shipping
+                  </span>
+                  <span>Track Order</span>
+                </button>
               </div>
               <p className="text-[13px] text-on-surface-variant">
-                Select your state and city to load authorized school uniforms, house kits, and blazers.
+                Select your state and city to load authorized school uniforms, house kits, ties, socks, and shoes.
               </p>
             </div>
 
@@ -422,8 +338,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-surface-container-high text-[11px] text-on-surface-variant">
-                  <span>3 Institutional Uniforms Available</span>
-                  <span className="text-secondary font-bold">2024-25 Authorized Pattern</span>
+                  <span className="font-semibold text-primary">Authorized Uniform Catalog Ready</span>
+                  <span className="text-secondary font-bold">Institution-Approved Patterns</span>
                 </div>
               </div>
             )}
@@ -495,130 +411,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <span className="text-[11px] text-on-surface-variant leading-tight">
                 School-accepted fee receipts & tax slips
               </span>
-            </div>
-          </div>
-        </section>
-
-        {/* Popular Private Schools Section */}
-        <section className="px-4 py-5 bg-surface flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-[18px] font-bold text-primary">
-                Featured Private Schools
-              </h3>
-              <p className="text-[12px] text-on-surface-variant">
-                Quick entry into verified school uniform kits
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                document
-                  .getElementById('selectorSection')
-                  ?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="text-[12px] font-bold text-secondary flex items-center gap-0.5 hover:underline cursor-pointer"
-            >
-              <span>Explore All 100</span>
-              <span className="material-symbols-outlined text-sm">
-                chevron_right
-              </span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {popularSchools.map((school) => (
-              <div
-                key={school.id}
-                className="bg-surface-container-lowest p-3 rounded-xl shadow-xs border border-surface-container hover:border-secondary/40 transition-all flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-primary text-xl">
-                      {school.iconName || 'school'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-bold text-primary truncate">
-                      {school.name}
-                    </span>
-                    <span className="text-[11px] text-on-surface-variant truncate">
-                      {school.city}, {school.state} • {school.board}
-                    </span>
-                    <span className="text-[10px] text-secondary font-semibold">
-                      3 Official Uniforms in Stock
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleQuickSchoolSelect(school.id)}
-                  className="px-2.5 py-1.5 rounded-lg bg-primary text-on-primary text-[11px] font-bold shrink-0 shadow-xs active:scale-95 transition-transform flex items-center gap-1 cursor-pointer"
-                >
-                  <span>Shop</span>
-                  <span className="material-symbols-outlined text-xs text-secondary-fixed">
-                    chevron_right
-                  </span>
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* The Magnum Standard */}
-        <section className="px-4 py-4 bg-surface">
-          <div className="bg-surface-container-low p-4 sm:p-5 rounded-2xl flex flex-col gap-3">
-            <div className="flex flex-col">
-              <span className="text-[11px] text-secondary font-bold uppercase tracking-wider">
-                The Magnum Standard
-              </span>
-              <h3 className="text-[18px] font-bold text-primary mt-0.5">
-                Why Top Indian Schools Trust Us
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              <div className="bg-surface-container-lowest p-3 rounded-xl flex items-start gap-2.5 shadow-xs">
-                <div className="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center shrink-0 text-primary">
-                  <span className="material-symbols-outlined text-lg">
-                    verified
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[13px] font-bold text-primary">
-                    Certified Fabric Compliance
-                  </span>
-                  <span className="text-[11px] text-on-surface-variant">
-                    Double-reinforced seams, pre-shrunk long staple cotton, and non-fading institutional dyes.
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-surface-container-lowest p-3 rounded-xl flex items-start gap-2.5 shadow-xs">
-                <div className="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center shrink-0 text-primary">
-                  <span className="material-symbols-outlined text-lg">straighten</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[13px] font-bold text-primary">
-                    Growth Expander Waistbands
-                  </span>
-                  <span className="text-[11px] text-on-surface-variant">
-                    Internal concealed elastic adjusters allow trousers and skirts to comfortably fit growing children.
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-surface-container-lowest p-3 rounded-xl flex items-start gap-2.5 shadow-xs">
-                <div className="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center shrink-0 text-primary">
-                  <span className="material-symbols-outlined text-lg">support_agent</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[13px] font-bold text-primary">
-                    Direct Campus Coordinator Hotline
-                  </span>
-                  <span className="text-[11px] text-on-surface-variant">
-                    Dedicated uniform liaison for every affiliated institution for sizing advice and custom alterations.
-                  </span>
-                </div>
-              </div>
             </div>
           </div>
         </section>

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Order, ActiveScreen } from '../types';
+import { Order, ActiveScreen, UserAccount } from '../types';
+import { MagnumLogo } from './MagnumLogo';
+import { getOrderByIdFromDb } from '../services/dbService';
 
 interface TrackOrderViewProps {
   orders: Order[];
+  user?: UserAccount;
   onNavigate: (screen: ActiveScreen) => void;
   onShowToast: (msg: string) => void;
   onOpenInvoice?: (order: Order) => void;
@@ -13,6 +16,7 @@ interface TrackOrderViewProps {
 
 export const TrackOrderView: React.FC<TrackOrderViewProps> = ({
   orders,
+  user,
   onNavigate,
   onShowToast,
   onOpenInvoice,
@@ -20,64 +24,58 @@ export const TrackOrderView: React.FC<TrackOrderViewProps> = ({
   onOpenSupport,
   onChangeAddress,
 }) => {
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchedOrder, setSearchedOrder] = useState<Order | null>(null);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+
+  const activeOrders = orders;
   const [selectedOrderId, setSelectedOrderId] = useState<string>(
     orders[0]?.id || ''
   );
-  const currentOrder =
-    orders.find((o) => o.id === selectedOrderId) || orders[0];
 
-  if (!currentOrder || orders.length === 0) {
-    return (
-      <div className="flex flex-col w-full pb-24">
-        {/* Top Header */}
-        <div className="px-4 py-2.5 bg-surface-container-lowest shadow-xs border-b border-surface-container flex items-center justify-between">
-          <button
-            onClick={() => onNavigate('home')}
-            className="flex items-center gap-1 text-primary hover:text-secondary font-bold text-[14px]"
-          >
-            <span className="material-symbols-outlined text-[20px]">
-              arrow_back
-            </span>
-            <span>Home</span>
-          </button>
-          <span className="text-[12px] font-bold text-primary">
-            Track Consignment
-          </span>
-          <div className="w-8"></div>
-        </div>
+  const currentOrder = searchedOrder || activeOrders.find((o) => o.id === selectedOrderId) || activeOrders[0];
 
-        <div className="max-w-md mx-auto w-full px-4 pt-12 text-center flex flex-col items-center gap-3">
-          <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center text-outline">
-            <span className="material-symbols-outlined text-3xl">
-              local_shipping
-            </span>
-          </div>
-          <h2 className="text-[18px] font-bold text-primary">
-            No Active Consignments
-          </h2>
-          <p className="text-[13px] text-on-surface-variant max-w-xs leading-relaxed">
-            You don't have any active school uniform orders in progress. Once you place an order, live tailoring, cresting, and courier milestones will appear here in real time.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center gap-2 mt-2 w-full max-w-xs">
-            <button
-              onClick={() => onNavigate('store')}
-              className="w-full py-2.5 bg-primary text-on-primary rounded-xl text-[13px] font-bold shadow-xs hover:bg-primary-container transition-all cursor-pointer"
-            >
-              Browse School Store
-            </button>
-            <button
-              onClick={() => onNavigate('login')}
-              className="w-full py-2.5 bg-surface-container-low text-primary rounded-xl text-[13px] font-bold hover:bg-surface-container transition-all cursor-pointer"
-            >
-              Sign In to Account
-            </button>
-          </div>
-        </div>
-      </div>
+  const handleSearchOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) {
+      onShowToast('Please enter an Order ID or Consignment Number');
+      return;
+    }
+    const cleanQuery = searchQuery.trim();
+    setIsSearching(true);
+
+    const foundLocal = activeOrders.find(
+      (o) => o.id.toLowerCase() === cleanQuery.toLowerCase() || o.id.toLowerCase().includes(cleanQuery.toLowerCase())
     );
-  }
+
+    if (foundLocal) {
+      setSearchedOrder(foundLocal);
+      setSelectedOrderId(foundLocal.id);
+      setIsSearching(false);
+      onShowToast(`Consignment found: ${foundLocal.id}`);
+      return;
+    }
+
+    try {
+      const liveOrder = await getOrderByIdFromDb(cleanQuery);
+      if (liveOrder) {
+        setSearchedOrder(liveOrder);
+        setSelectedOrderId(liveOrder.id);
+        onShowToast(`Consignment found: ${liveOrder.id}`);
+      } else {
+        setSearchedOrder(null);
+        onShowToast(`No order found with ID "${cleanQuery}". Please verify your Order ID.`);
+      }
+    } catch (err) {
+      console.error('Error searching order:', err);
+      onShowToast('Error connecting to database. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleDownloadInvoice = () => {
+    if (!currentOrder) return;
     if (onOpenInvoice) {
       onOpenInvoice(currentOrder);
     } else {
@@ -86,6 +84,7 @@ export const TrackOrderView: React.FC<TrackOrderViewProps> = ({
   };
 
   const handleExchangeRequest = () => {
+    if (!currentOrder) return;
     if (onOpenExchange) {
       onOpenExchange(currentOrder);
     } else {
@@ -111,13 +110,13 @@ export const TrackOrderView: React.FC<TrackOrderViewProps> = ({
             Track Consignment
           </span>
           <span className="text-[10px] bg-secondary-fixed text-primary px-1.5 py-0.5 rounded font-bold">
-            {currentOrder.id}
+            {currentOrder ? currentOrder.id : 'Guest'}
           </span>
         </div>
         <button
           onClick={() => {
             if (onOpenSupport) onOpenSupport();
-            else onShowToast('Connecting to Magnum DPS Pune Support Desk...');
+            else onShowToast('Connecting to Support Desk...');
           }}
           className="text-secondary text-[12px] font-bold flex items-center gap-0.5"
         >
@@ -127,6 +126,61 @@ export const TrackOrderView: React.FC<TrackOrderViewProps> = ({
       </div>
 
       <div className="max-w-2xl mx-auto w-full px-4 pt-3 flex flex-col gap-4">
+        {/* Guest Track Search Bar */}
+        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-xs border border-surface-container flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-secondary text-xl">
+              search
+            </span>
+            <span className="text-[14px] font-bold text-primary">
+              Track Order by ID / Consignment Number
+            </span>
+          </div>
+          <form onSubmit={handleSearchOrder} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="e.g. #MGN-84920"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-surface-container-low border border-surface-container rounded-lg px-3 py-2 text-[13px] text-primary focus:outline-none focus:border-secondary"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 bg-primary text-on-primary rounded-lg text-[13px] font-bold shadow-xs hover:bg-primary-container transition-colors"
+            >
+              Track
+            </button>
+          </form>
+          {orders.length === 0 && !searchedOrder && (
+            <div className="text-[11px] text-on-surface-variant flex items-center justify-between pt-1">
+              {user && user.role !== 'guest' ? (
+                <>
+                  <span className="text-primary font-medium">
+                    Signed in as <strong className="text-secondary">{user.email}</strong>. No orders linked to this account yet.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('home')}
+                    className="text-secondary font-bold hover:underline"
+                  >
+                    Browse Catalog
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span>Enter your institutional order reference ID above</span>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('login')}
+                    className="text-secondary font-bold hover:underline"
+                  >
+                    Sign In to View All Orders
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
         {/* Order Selector Tab Strip if multiple orders */}
         {orders.length > 1 && (
           <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -151,8 +205,73 @@ export const TrackOrderView: React.FC<TrackOrderViewProps> = ({
           </div>
         )}
 
-        {/* Active Order Status Hero Card */}
-        <div className="bg-primary text-on-primary rounded-2xl p-5 shadow-md flex flex-col gap-3 relative overflow-hidden">
+        {!currentOrder ? (
+          <div className="bg-surface-container-lowest rounded-2xl p-8 shadow-xs border border-surface-container text-center flex flex-col items-center gap-4 my-4">
+            <div className="w-16 h-16 rounded-2xl bg-secondary-fixed/20 flex items-center justify-center text-secondary">
+              <span className="material-symbols-outlined text-3xl">
+                {user && user.role !== 'guest' ? 'receipt_long' : 'local_shipping'}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[16px] font-bold text-primary">
+                {user && user.role !== 'guest' ? 'No Orders Linked to Account' : 'Ready to Track Consignment'}
+              </h3>
+              <p className="text-[13px] text-on-surface-variant max-w-sm">
+                {user && user.role !== 'guest' ? (
+                  <>
+                    You are signed in as <strong className="text-primary">{user.email}</strong>. No orders are currently associated with this account. Enter an Order ID above or browse the catalog.
+                  </>
+                ) : (
+                  <>
+                    Enter your Order ID (e.g. #MGN-84920) in the search box above to view real-time production and courier status, or sign in to your parent account.
+                  </>
+                )}
+              </p>
+            </div>
+            {user && user.role !== 'guest' ? (
+              <button
+                onClick={() => onNavigate('home')}
+                className="px-5 py-2.5 bg-primary text-on-primary rounded-xl text-[13px] font-bold shadow-xs hover:bg-primary-container transition-colors cursor-pointer"
+              >
+                Browse Uniform Catalog
+              </button>
+            ) : (
+              <button
+                onClick={() => onNavigate('login')}
+                className="px-5 py-2.5 bg-primary text-on-primary rounded-xl text-[13px] font-bold shadow-xs hover:bg-primary-container transition-colors cursor-pointer"
+              >
+                Sign In to Parent Account
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Order Selector Tab Strip if multiple orders */}
+            {orders.length > 1 && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                {orders.map((ord) => (
+                  <button
+                    key={ord.id}
+                    onClick={() => setSelectedOrderId(ord.id)}
+                    className={`px-3 py-1.5 rounded-lg text-[12px] font-bold shrink-0 transition-all flex items-center gap-1.5 ${
+                      ord.id === selectedOrderId
+                        ? 'bg-primary text-on-primary shadow-xs'
+                        : 'bg-surface-container-low text-on-surface hover:bg-surface-container'
+                    }`}
+                  >
+                    <span>{ord.id}</span>
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        ord.status === 'in-transit' ? 'bg-secondary' : 'bg-outline'
+                      }`}
+                    ></span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Active Order Status Hero Card */}
+            <div className="bg-primary text-on-primary rounded-2xl p-5 shadow-md flex flex-col gap-3 relative overflow-hidden">
           <div className="flex items-start justify-between">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-secondary-fixed uppercase tracking-wider font-bold">
@@ -199,7 +318,7 @@ export const TrackOrderView: React.FC<TrackOrderViewProps> = ({
               Institutional Fulfillment Timeline
             </h3>
             <span className="text-[11px] text-secondary font-bold bg-secondary-fixed/30 px-2 py-0.5 rounded-full">
-              Live {currentOrder.school.split(',')[0]} Dispatch Log
+              Live {(currentOrder.school || '').split(',')[0]} Dispatch Log
             </span>
           </div>
 
@@ -377,10 +496,12 @@ export const TrackOrderView: React.FC<TrackOrderViewProps> = ({
           <p className="text-[12px] text-on-surface-variant leading-relaxed">
             {currentOrder.shippingAddress}
           </p>
-          <div className="flex items-center gap-1 text-[11px] text-primary font-semibold mt-1">
-            <span className="material-symbols-outlined text-xs">call</span>
-            <span>{currentOrder.contactNumber}</span>
-          </div>
+          {Boolean(currentOrder.contactNumber?.trim()) && (
+            <div className="flex items-center gap-1 text-[11px] text-primary font-semibold mt-1">
+              <span className="material-symbols-outlined text-xs">call</span>
+              <span>{currentOrder.contactNumber}</span>
+            </div>
+          )}
         </div>
 
         {/* Invoice & Exchange Actions */}
@@ -433,6 +554,8 @@ export const TrackOrderView: React.FC<TrackOrderViewProps> = ({
             Chat Now
           </button>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

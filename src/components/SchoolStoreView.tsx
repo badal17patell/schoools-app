@@ -10,6 +10,7 @@ interface SchoolStoreViewProps {
   onOpenSizeGuide: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  products?: UniformItem[];
 }
 
 export const SchoolStoreView: React.FC<SchoolStoreViewProps> = ({
@@ -20,6 +21,7 @@ export const SchoolStoreView: React.FC<SchoolStoreViewProps> = ({
   onOpenSizeGuide,
   searchQuery,
   setSearchQuery,
+  products,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('recommended');
@@ -35,34 +37,57 @@ export const SchoolStoreView: React.FC<SchoolStoreViewProps> = ({
   const [addedItems, setAddedItems] = useState<Record<string, boolean>>({});
 
   const categories = [
-    { id: 'all', label: 'All' },
-    { id: 'boys', label: 'Boys' },
-    { id: 'girls', label: 'Girls' },
+    { id: 'all', label: 'All Items' },
+    { id: 'ties', label: 'Ties & Belts' },
+    { id: 'socks', label: 'Socks' },
+    { id: 'sweaters', label: 'Sweaters' },
+    { id: 'shoes', label: 'Shoes' },
     { id: 'shirts', label: 'Shirts' },
     { id: 'trousers', label: 'Trousers' },
     { id: 'skirts', label: 'Skirts' },
     { id: 'blazers', label: 'Blazers' },
-    { id: 'accessories', label: 'Ties & Belts' },
-    { id: 'socks', label: 'Socks' },
-    { id: 'sweaters', label: 'Sweaters' },
-    { id: 'shoes', label: 'Shoes' },
+    { id: 'boys', label: 'Boys' },
+    { id: 'girls', label: 'Girls' },
   ];
 
   const filteredProducts = useMemo(() => {
-    // Filter items specific to this active school (each school has 3 authorized products)
-    const schoolSpecificItems = UNIFORM_ITEMS.filter((item) => item.schoolId === activeSchool.id);
-    const baseItems = schoolSpecificItems.length > 0 ? schoolSpecificItems : UNIFORM_ITEMS.slice(0, 3);
+    // Products prop contains real-time synced Firestore products merged with catalog
+    const sourceItems = products && products.length > 0 ? products : UNIFORM_ITEMS;
+    const schoolSpecificItems = sourceItems.filter((item) => item.schoolId === activeSchool.id);
+    const fallbackSchoolItems = UNIFORM_ITEMS.filter((item) => item.schoolId === activeSchool.id);
+    const baseItems =
+      schoolSpecificItems.length > 0
+        ? schoolSpecificItems
+        : fallbackSchoolItems.length > 0
+        ? fallbackSchoolItems
+        : sourceItems.slice(0, 30);
 
     return baseItems.filter((item) => {
       // Category filter
       if (selectedCategory !== 'all') {
-        if (selectedCategory === 'boys' && item.category !== 'boys' && item.category !== 'shirts' && item.category !== 'trousers') return false;
-        if (selectedCategory === 'girls' && item.category !== 'girls' && item.category !== 'skirts') return false;
-        if (selectedCategory === 'shirts' && item.category !== 'shirts') return false;
-        if (selectedCategory === 'trousers' && item.category !== 'trousers') return false;
-        if (selectedCategory === 'skirts' && item.category !== 'skirts') return false;
-        if (selectedCategory === 'blazers' && item.category !== 'blazers') return false;
-        if (selectedCategory === 'accessories' && item.category !== 'accessories') return false;
+        if (selectedCategory === 'boys') {
+          if (item.gender === 'girls' || item.category === 'skirts') return false;
+        } else if (selectedCategory === 'girls') {
+          if (item.gender === 'boys') return false;
+        } else if (selectedCategory === 'ties' || selectedCategory === 'accessories') {
+          if (item.category !== 'ties' && item.category !== 'accessories') return false;
+        } else if (selectedCategory === 'socks') {
+          if (item.category !== 'socks') return false;
+        } else if (selectedCategory === 'sweaters') {
+          if (item.category !== 'sweaters') return false;
+        } else if (selectedCategory === 'shoes') {
+          if (item.category !== 'shoes') return false;
+        } else if (selectedCategory === 'shirts') {
+          if (item.category !== 'shirts') return false;
+        } else if (selectedCategory === 'trousers') {
+          if (item.category !== 'trousers') return false;
+        } else if (selectedCategory === 'skirts') {
+          if (item.category !== 'skirts') return false;
+        } else if (selectedCategory === 'blazers') {
+          if (item.category !== 'blazers') return false;
+        } else if (item.category !== selectedCategory) {
+          return false;
+        }
       }
 
       // Search query filter
@@ -83,7 +108,7 @@ export const SchoolStoreView: React.FC<SchoolStoreViewProps> = ({
       if (sortBy === 'popular') return b.originalPrice - a.originalPrice;
       return 0; // recommended
     });
-  }, [activeSchool.id, selectedCategory, searchQuery, sortBy]);
+  }, [activeSchool.id, selectedCategory, searchQuery, sortBy, products]);
 
   const handleSizeSelect = (itemId: string, size: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -109,73 +134,6 @@ export const SchoolStoreView: React.FC<SchoolStoreViewProps> = ({
 
   return (
     <div className="flex flex-col w-full pb-20">
-      {/* School Store Institutional Header Banner */}
-      <section className="w-full bg-surface-container-low px-4 py-3.5 shadow-xs border-b border-surface-container/50">
-        <div className="max-w-2xl mx-auto flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* School Crest / Shield */}
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-md relative overflow-hidden">
-              <div className="absolute inset-0 opacity-20 bg-gradient-to-tr from-secondary to-transparent"></div>
-              <span
-                className="material-symbols-outlined text-secondary-fixed text-2xl font-bold"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                {activeSchool.iconName || 'local_library'}
-              </span>
-            </div>
-
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h1 className="text-[18px] sm:text-[20px] font-bold text-on-surface tracking-tight truncate leading-tight">
-                  {activeSchool.name}
-                </h1>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-secondary-fixed text-on-secondary-fixed text-[10px] uppercase font-bold tracking-wide">
-                  {activeSchool.board}
-                </span>
-              </div>
-              <p className="text-[12px] text-on-surface-variant truncate">
-                Official school uniform collection
-              </p>
-              <div className="flex items-center gap-1 mt-0.5 text-secondary">
-                <span className="material-symbols-outlined text-xs">location_on</span>
-                <span className="text-[11px] font-semibold text-secondary truncate">
-                  {activeSchool.city}, {activeSchool.state}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Change School Button */}
-          <button
-            onClick={onOpenSchoolModal}
-            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface shadow-xs active:scale-95 transition-all hover:bg-surface-container-high border border-surface-container"
-          >
-            <span className="material-symbols-outlined text-sm text-secondary font-bold">
-              swap_horiz
-            </span>
-            <span className="text-[11px] font-bold tracking-tight">Change</span>
-          </button>
-        </div>
-
-        {/* Verification Sub-Bar */}
-        <div className="max-w-2xl mx-auto mt-2.5 pt-2 flex items-center justify-between gap-2 bg-surface-container-lowest px-3 py-2 rounded-lg shadow-xs border border-surface-container/60">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span
-              className="material-symbols-outlined text-secondary text-base"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              verified
-            </span>
-            <span className="text-[12px] text-on-surface truncate font-semibold">
-              Authorized Magnum Partner Store
-            </span>
-          </div>
-          <span className="shrink-0 text-[11px] font-bold text-on-secondary-container bg-secondary-container/40 px-2 py-0.5 rounded-full">
-            {activeSchool.approvedYear}
-          </span>
-        </div>
-      </section>
-
       <div className="max-w-2xl mx-auto w-full">
         {/* Scoped Search & Filter Bar */}
         <section className="w-full px-4 pt-3.5 pb-2 bg-surface sticky top-16 z-30 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">

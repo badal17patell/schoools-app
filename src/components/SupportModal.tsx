@@ -47,9 +47,9 @@ export const SupportModal: React.FC<SupportModalProps> = ({
       } else if (text.toLowerCase().includes('blazer')) {
         reply += `Delhi Public School, Pune mandates the Navy Crested Blazer from October 15th through February for all students from Grade 5 upwards.`;
       } else if (text.toLowerCase().includes('deliver') || text.toLowerCase().includes('mgn')) {
-        reply += `Your consignment #MGN-84920 has passed institutional quality QA and is dispatched with BlueDart Express for delivery by 14 May.`;
+        reply += `Your consignment has passed institutional quality QA and is in transit. Live milestone updates are available under the Track Order tab.`;
       } else {
-        reply += `Our authorized school coordinator at ${activeSchool.name} desk has noted your request. We have also forwarded a copy to your registered WhatsApp (+91 98201 49201).`;
+        reply += `Our authorized school coordinator at ${activeSchool.name} desk has noted your request. We will assist you promptly.`;
       }
 
       setMessages((prev) => [
@@ -72,9 +72,11 @@ export const SupportModal: React.FC<SupportModalProps> = ({
         <div className="p-4 bg-primary text-on-primary flex items-center justify-between shadow-sm shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <div className="w-10 h-10 rounded-full bg-surface-container-lowest text-primary flex items-center justify-center font-bold text-base shadow-xs">
-                M
-              </div>
+              <img
+                src="/assets/magnum-logo.svg"
+                alt="Magnum Support"
+                className="w-10 h-10 rounded-full bg-black border border-[#d4af37]/40 p-0.5 object-contain shrink-0 shadow-xs"
+              />
               <span className="w-3 h-3 rounded-full bg-green-500 border-2 border-primary absolute bottom-0 right-0"></span>
             </div>
             <div>
@@ -90,10 +92,10 @@ export const SupportModal: React.FC<SupportModalProps> = ({
           <div className="flex items-center gap-1">
             <button
               onClick={() => {
-                onShowToast('Connecting to WhatsApp Coordinator (+91 98201 49201)...');
+                onShowToast('Connecting to Official School Uniform Coordinator...');
               }}
               className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary hover:bg-white/20 transition-colors"
-              title="Open WhatsApp"
+              title="Campus Coordinator"
             >
               <span className="material-symbols-outlined text-base">chat</span>
             </button>
@@ -110,9 +112,9 @@ export const SupportModal: React.FC<SupportModalProps> = ({
         <div className="px-4 py-2 bg-secondary-container/20 border-b border-secondary/20 flex items-center justify-between text-[11px] shrink-0">
           <span className="text-primary font-semibold flex items-center gap-1">
             <span className="material-symbols-outlined text-xs text-secondary">verified</span>
-            Direct Campus Helpline: +91 98201 49201
+            Institutional Helpline: 1800-202-6000
           </span>
-          <span className="text-secondary font-bold">Mon-Sat: 9am-6pm</span>
+          <span className="text-secondary font-bold">Mon–Sat: 9am–6pm</span>
         </div>
 
         {/* Message Thread */}
