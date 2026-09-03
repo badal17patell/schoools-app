@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Magnum Uniforms Database Schema",
+  "description": "Schema definition for Magnum Uniforms cloud Firestore database",
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Authorized parent or master tailor profile in Magnum portal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["parent", "tailor", "guest"] },
+        "avatarUrl": { "type": "string" },
+        "defaultAddress": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "Order": {
+      "title": "Uniform Order",
+      "description": "Institutional school uniform order placed by parent",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Order reference code, e.g., MU-2024-8921" },
+        "userId": { "type": "string", "description": "Owner Firebase UID" },
+        "userEmail": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentGrade": { "type": "string" },
+        "school": { "type": "string" },
+        "house": { "type": "string" },
+        "date": { "type": "string" },
+        "estimatedArrival": { "type": "string" },
+        "total": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "shippingAddress": { "type": "string" },
+        "contactNumber": { "type": "string" },
+        "statusText": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["processing", "tailoring", "quality-check", "in-transit", "delivered"]
+        },
+        "timelineStep": { "type": "number" },
+        "items": { "type": "array" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "school", "items", "total", "status"]
+    },
+    "ChildProfile": {
+      "title": "Student Profile",
+      "description": "Registered student measurement and school association",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "school": { "type": "string" },
+        "grade": { "type": "string" },
+        "house": { "type": "string" },
+        "rollNo": { "type": "string" },
+        "height": { "type": "string" },
+        "weight": { "type": "string" },
+        "sizes": { "type": "object" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "name", "school", "grade"]
+    },
+    "ExchangeRequest": {
+      "title": "Uniform Exchange Request",
+      "description": "7-day doorstep size exchange guarantee requests",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "userId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "itemName": { "type": "string" },
+        "currentSize": { "type": "string" },
+        "requestedSize": { "type": "string" },
+        "reason": { "type": "string" },
+        "pickupMode": { "type": "string" },
+        "status": { "type": "string" },
+        "requestDate": { "type": "string" }
+      },
+      "required": ["orderId", "userId", "itemName", "requestedSize"]
+    }
+  },
+  "firestore": {
+    "collections": {
+      "users": {
+        "schema": "User",
+        "rules": "Users can read and update their own profile document. Tailors and admins can view profiles for order dispatch."
+      },
+      "orders": {
+        "schema": "Order",
+        "rules": "Authenticated parents can read and create their own orders. Tailor staff can read all orders and update fulfillment status."
+      },
+      "childProfiles": {
+        "schema": "ChildProfile",
+        "rules": "Parents can read, create and manage student profiles linked to their user ID."
+      },
+      "exchangeRequests": {
+        "schema": "ExchangeRequest",
+        "rules": "Parents can create exchange requests. Staff can review and update exchange status."
+      }
+    }
+  }
+}

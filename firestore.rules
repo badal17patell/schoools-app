@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User Accounts collection
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Orders collection - accessible by parents, guests, and master tailors
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // Child Profiles collection - student uniform measurements & profiles
+    match /childProfiles/{profileId} {
+      allow read, write: if true;
+    }
+
+    // Exchange Requests collection - size swap tickets
+    match /exchangeRequests/{requestId} {
+      allow read, write: if true;
+    }
+
+    // Default fallback for any other collections
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+
